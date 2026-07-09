@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#8E1313">
+<title>उधार खाता — Key Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--red-deep:#8E1313;--red:#B71C1C;--haldi:#F6A800;--haldi-light:#FFD54F;--paper:#FDF6E3;--card:#FFFDF5;--ink:#3E2723;--ink-soft:#6D4C41;--green:#1B7A3D;--line:#E8D9B5}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Mukta',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+.wrap{width:100%;max-width:420px}
+.head{background:linear-gradient(160deg,var(--red),var(--red-deep));border-radius:16px;border:3px solid var(--haldi);padding:18px;text-align:center;color:#FFF8E1;margin-bottom:16px}
+.head .inner{border:2px dashed var(--haldi-light);border-radius:10px;padding:12px}
+.head h1{font-family:'Baloo 2';font-size:22px;color:var(--haldi-light);line-height:1.15}
+.head p{font-size:12px;opacity:.9;margin-top:4px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 6px rgba(142,19,19,.08)}
+label{display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px}
+input{width:100%;padding:14px;border:2px solid var(--line);border-radius:12px;font-size:22px;font-family:'Baloo 2';font-weight:800;text-align:center;letter-spacing:5px;background:#fff;color:var(--ink);outline:none}
+input:focus{border-color:var(--haldi)}
+.btn{width:100%;background:var(--haldi);color:var(--red-deep);border:none;border-radius:12px;padding:14px;font-family:'Baloo 2';font-weight:800;font-size:17px;cursor:pointer;margin-top:12px}
+.btn.grn{background:#25D366;color:#fff}
+.keybox{display:none;background:var(--red-deep);border:3px dashed var(--haldi);border-radius:14px;padding:18px;text-align:center;margin-top:14px}
+.keybox .lbl{font-size:12px;color:var(--haldi-light);font-weight:700;letter-spacing:1px}
+.keybox .key{font-family:'Baloo 2';font-size:40px;font-weight:800;color:#FFF8E1;letter-spacing:8px;margin:6px 0}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:#FFF8E1;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;display:none;z-index:99}
+.err{color:var(--red);font-size:13px;font-weight:700;margin-top:8px;text-align:center;display:none}
+#genScreen{display:none}
+.note{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><div class="inner">
+    <div style="font-size:32px">🔑</div>
+    <h1>UDHAAR KHATA<br>KEY GENERATOR</h1>
+    <p>सिर्फ मालिक के लिए — Ankush</p>
+  </div></div>
+
+  <!-- PIN LOCK -->
+  <div class="card" id="pinScreen">
+    <label>🔒 Owner PIN डालें</label>
+    <input id="pin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <div class="err" id="pinErr">❌ ग़लत PIN</div>
+    <button class="btn" onclick="checkPin()">Unlock करें</button>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genScreen">
+    <div class="card">
+      <label>ग्राहक का Device Code (6 अंक)</label>
+      <input id="dev" type="tel" inputmode="numeric" maxlength="6" placeholder="000000" oninput="if(this.value.length===6)genKey()">
+      <div class="err" id="devErr">❌ पूरे 6 अंक डालें</div>
+      <button class="btn" onclick="genKey()">🔑 Key निकालें</button>
+      <div class="keybox" id="keybox">
+        <div class="lbl">LICENCE KEY</div>
+        <div class="key" id="keyOut">------</div>
+        <button class="btn" style="margin-top:6px" onclick="copyKey()">📋 Copy करें</button>
+        <button class="btn grn" onclick="waKey()">💬 WhatsApp पे भेजें</button>
+      </div>
+    </div>
+    <div class="note">हर device की key अलग होती है — एक key सिर्फ उसी phone पे चलेगी 🔒</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================
+   OWNER PIN — ise badalna ho to neeche wali line me naya PIN likho
+   ============================================ */
+const OWNER_PIN='7113';
+
+let lastKey='';
+function $(i){return document.getElementById(i)}
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2200)}
+function checkPin(){
+  if($('pin').value===OWNER_PIN){$('pinScreen').style.display='none';$('genScreen').style.display='block'}
+  else{$('pinErr').style.display='block';$('pin').value=''}
+}
+$('pin').addEventListener('keyup',e=>{if(e.key==='Enter')checkPin()});
+function genKey(){
+  const d=$('dev').value.replace(/\D/g,'');
+  if(d.length!==6){$('devErr').style.display='block';$('keybox').style.display='none';return}
+  $('devErr').style.display='none';
+  lastKey=String((parseInt(d)*7+301186)%1000000).padStart(6,'0');
+  $('keyOut').textContent=lastKey;
+  $('keybox').style.display='block';
+}
+function copyKey(){
+  if(!lastKey)return;
+  navigator.clipboard.writeText(lastKey).then(()=>toast('📋 Key copy हो गई!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=lastKey;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('📋 Key copy हो गई!');
+  });
+}
+function waKey(){
+  if(!lastKey)return;
+  const msg=`🔑 *उधार खाता — Licence Key*\n\nआपकी Key: *${lastKey}*\n\nApp में डालकर Activate करें ✅\n\n- Ankush Kirana`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+</script>
+</body>
+</html>
