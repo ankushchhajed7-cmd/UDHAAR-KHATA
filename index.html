@@ -56,7 +56,7 @@ h1,h2,h3,.baloo{font-family:'Baloo 2','Mukta',sans-serif}
 .toolbar{display:flex;gap:8px;padding:10px 14px 4px}
 .search{flex:1;display:flex;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:11px;padding:0 10px}
 .search input{flex:1;border:none;background:none;padding:11px 6px;font-size:15px;font-family:'Mukta';outline:none;color:var(--ink)}
-.bulk-btn{background:var(--haldi);color:var(--red-deep);border:none;border-radius:11px;padding:0 13px;font-weight:800;font-family:'Baloo 2';font-size:13px;cursor:pointer}
+.bulk-btn{background:var(--haldi);color:var(--red-deep);border:none;border-radius:11px;padding:0 10px;font-weight:800;font-family:'Baloo 2';font-size:12px;line-height:1.25;cursor:pointer;flex-shrink:0;white-space:nowrap}
 
 /* ===== Customer list ===== */
 .list{padding:10px 14px}
@@ -572,14 +572,44 @@ function openBulk(){
 /* ---------- Voice ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 function makeRec(lang){const r=new SR();r.lang=lang;r.interimResults=false;r.maxAlternatives=1;return r}
+
+/* Spoken words → digits: "नौ आठ सात", "double नौ", "पांच सौ", "two thousand" sab samjhega */
+const NUMW={'शून्य':0,'जीरो':0,'zero':0,'0':0,'एक':1,'इक':1,'one':1,'1':1,'दो':2,'two':2,'तू':2,'2':2,
+'तीन':3,'three':3,'3':3,'चार':4,'four':4,'4':4,'पांच':5,'पाँच':5,'five':5,'5':5,
+'छह':6,'छः':6,'छे':6,'six':6,'6':6,'सात':7,'seven':7,'7':7,'आठ':8,'eight':8,'8':8,
+'नौ':9,'nine':9,'9':9};
+function spokenToDigits(t,isPhone){
+  t=t.toLowerCase().replace(/[,.\-]/g,' ');
+  const toks=t.split(/\s+/).filter(Boolean);
+  let out='',mult=1;
+  for(let i=0;i<toks.length;i++){
+    let w=toks[i];
+    if(/^\d+$/.test(w)){out+=w;continue}
+    if(w==='डबल'||w==='double'){mult=2;continue}
+    if(w==='ट्रिपल'||w==='triple'){mult=3;continue}
+    if(!isPhone&&(w==='सौ'||w==='hundred'||w==='so')){out=out?String(parseInt(out)*100):'100';continue}
+    if(!isPhone&&(w==='हज़ार'||w==='हजार'||w==='thousand')){out=out?String(parseInt(out)*1000):'1000';continue}
+    if(!isPhone&&(w==='लाख'||w==='lakh')){out=out?String(parseInt(out)*100000):'100000';continue}
+    if(w in NUMW){out+=String(NUMW[w]).repeat(mult);mult=1}
+  }
+  return out;
+}
 function fieldVoice(fid,btn){
   if(!SR){toast('Voice इस browser में नहीं चलेगा — Chrome use करें');return}
   const isNum=(fid==='eAmt'||fid==='eMobile'||fid==='pAmt');
+  const isPhone=(fid==='eMobile');
   const r=makeRec('hi-IN');btn.classList.add('listening');
+  if(isPhone)toast('🎤 नंबर एक-एक अंक बोलें: "नौ आठ सात छह..."');
   r.onresult=e=>{
     let t=e.results[0][0].transcript;
-    if(isNum){t=t.replace(/\D/g,'')}
+    if(isNum){
+      t=spokenToDigits(t,isPhone);
+      if(isPhone)t=t.slice(-10);
+      if(!t){toast('नंबर समझ नहीं आया — एक-एक अंक बोलें');return}
+      if(isPhone&&t.length<10){$(fid).value=($(fid).value+t).slice(-10);toast(`${$(fid).value.length}/10 अंक — बाकी बोलें 🎤`);return}
+    }
     $(fid).value=t;
+    if(isPhone)toast('✔ नंबर आ गया: '+t);
     if(fid==='eName'){const c=findCust(t);if(c){$(fid).value=c.name;$('eMobile').value=c.mobile;toast('पुराना ग्राहक मिल गया ✔')}}
   };
   r.onend=()=>btn.classList.remove('listening');
@@ -593,7 +623,8 @@ function smartVoice(){
   toast('🎤 बोलें: "राम को 500 उधार दिया"');
   r.onresult=e=>{
     const t=e.results[0][0].transcript;
-    const amt=(t.match(/\d+/)||[null])[0];
+    let amt=(t.match(/\d+/)||[null])[0];
+    if(!amt){const w=spokenToDigits(t,false);if(w&&parseInt(w)>0)amt=w}
     const isJama=/(जमा|मिला|लिया|वापस|payment|received)/i.test(t);
     let namePart=t.replace(/\d+/g,'').replace(/(को|ने|का|उधार|दिया|जमा|मिला|लिया|वापस|रुपये|रुपया|rupees?|₹|payment|received)/gi,'').trim();
     const c=namePart?findCust(namePart):null;
